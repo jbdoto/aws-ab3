@@ -52,7 +52,7 @@ Resources:
       ContainerProperties:
         Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ResourcePrefixLowercase}:${ImageTag}
         Vcpus: 16
-        Memory: 127000
+        Memory: 120000
         Environment:
           - Name: SAMPLES_BUCKET
             Value: !Sub ${SamplesBucket}
