@@ -1,0 +1,132 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: IntSiteCallerDashboard
+
+Parameters:
+  ResourcePrefix:
+    Type: String
+    Default: IntSiteCallerProcessingPipeline
+  ResourcePrefixLowercase:
+    Type: String
+    Default: intsitecallerprocessingpipeline
+  JobQueue:
+    Type: String
+    Default: IntSiteCallerJobQueue
+  IntSiteCallerImage:
+    Type: String
+    Default: intsitecaller
+  IntSiteCallerImageTag:
+    Type: String
+    Default: '1.0.0'
+  JobresultsBucket:
+    Type: String
+    Default: intsitecaller-results
+  PipelineVersion:
+    Type: String
+    Default: '1.0.0'
+
+Resources:
+  Dashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub IntSiteCallerPipelineDashboard
+      DashboardBody:
+        Fn::Sub: |-
+          {
+            "widgets": [
+                {
+                    "type": "metric",
+                    "x": 0,
+                    "y": 3,
+                    "width": 12,
+                    "height": 3,
+                    "properties": {
+                        "metrics": [
+                            [ "AWS/States", "ExecutionsSucceeded", "StateMachineArn", "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${ResourcePrefixLowercase}-${PipelineVersion}", { "label": "Succeeded", "color": "#2ca02c" } ],
+                            [ ".", "ExecutionsTimedOut", ".", "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${ResourcePrefixLowercase}-${PipelineVersion}", { "label": "Timed Out" } ],
+                            [ ".", "ExecutionsFailed", ".", ".", { "label": "Failed", "color": "#d62728" } ]
+                        ],
+                        "view": "singleValue",
+                        "title": "Workflow Status (Month)",
+                        "region": "${AWS::Region}",
+                        "stat": "Sum",
+                        "period": 2592000
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 0,
+                    "y": 0,
+                    "width": 12,
+                    "height": 3,
+                    "properties": {
+                        "metrics": [
+                            [ "AWS/States", "ExecutionsSucceeded", "StateMachineArn", "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${ResourcePrefixLowercase}-${PipelineVersion}", { "label": "Succeeded", "color": "#2ca02c" } ],
+                            [ ".", "ExecutionsTimedOut", ".", "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${ResourcePrefixLowercase}-${PipelineVersion}", { "label": "Timed Out" } ],
+                            [ ".", "ExecutionsFailed", ".", ".", { "label": "Failed", "color": "#d62728" } ]
+                        ],
+                        "view": "singleValue",
+                        "title": "Workflow Status (Day)",
+                        "region": "${AWS::Region}",
+                        "stat": "Sum",
+                        "period": 86400
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 12,
+                    "y": 6,
+                    "width": 12,
+                    "height": 6,
+                    "properties": {
+                        "metrics": [
+                            [ "AWS/States", "ExecutionTime", "StateMachineArn", "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${ResourcePrefixLowercase}-${PipelineVersion}", { "label": "ExecutionTime - p50" } ],
+                            [ "...", { "stat": "p95", "label": "ExecutionTime - p95" } ]
+                        ],
+                        "view": "timeSeries",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "stat": "p50",
+                        "period": 2592000,
+                        "title": "Workflow Runtime (Month)"
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 12,
+                    "y": 0,
+                    "width": 12,
+                    "height": 6,
+                    "properties": {
+                        "metrics": [
+                            [ "AWS/States", "ExecutionTime", "StateMachineArn", "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${ResourcePrefixLowercase}-${PipelineVersion}", { "label": "ExecutionTime - p50" } ],
+                            [ "...", { "stat": "p95", "label": "ExecutionTime - p95" } ]
+                        ],
+                        "view": "timeSeries",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "stat": "p50",
+                        "period": 86400,
+                        "title": "Workflow Runtime (Day)"
+                    }
+                },
+                {
+                  "type": "metric",
+                  "x": 0,
+                  "y": 6,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "metrics": [
+                          [ "${IntSiteCallerImage}:${IntSiteCallerImageTag}:${IntSiteCallerImageTag}", "ExecutionsSucceeded", "StateMachine", "${ResourcePrefixLowercase}-${PipelineVersion}", { "label": "IntSiteCaller", "color": "#2ca02c" } ]
+                      ],
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "region": "${AWS::Region}",
+                      "stat": "SampleCount",
+                      "period": 3600,
+                      "title": "Tool Run Count (Hour)"
+                  }
+                }
+            ]
+          }

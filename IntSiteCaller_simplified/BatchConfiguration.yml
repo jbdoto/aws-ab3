@@ -1,0 +1,467 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: IntSiteCaller
+
+Parameters:
+  ResourcePrefix:
+    Type: String
+    Default: IntSiteCaller
+  ResourcePrefixLowercase:
+    Type: String
+    Default: intsitecaller
+  ImageTag:
+    Type: String
+    Default: "1.0.0"
+  JobTag:
+    Type: String
+    Default: "1_0_0"
+  PipelineTag:
+    Type: String
+    Default: "1_0_0"
+  JobQueue:
+    Type: String
+    Default: intsitecaller-job-queue
+  SamplesBucket:
+    Type: String
+    Default: intsitecaller-samples
+  JobresultsBucket:
+    Type: String
+    Default: intsitecaller-jobresults
+  DependenciesBucket:
+    Type: String
+    Default: intsitecaller-dependencies
+  DatasetsBucket:
+    Type: String
+    Default: intsitecaller-datasets
+  BroadBucket:
+    Type: String
+    Default: broad-references
+  
+Resources:
+  BatchJobDefinitionIntSiteCaller:
+    Type: AWS::Batch::JobDefinition
+    Properties:
+      JobDefinitionName: !Sub ${ResourcePrefixLowercase}-intsitecaller-${JobTag}
+      Type: container
+      Parameters:
+        BUCKET_NAME: "intsitecaller-samples"
+        OBJECT_NAME: "STEP-FUNCTION-WILL-PROVIDE"
+        SAMPLE_ID: "STEP-FUNCTION-WILL-PROVIDE"
+        SERIAL_WAIT: "TRUE"
+
+      ContainerProperties:
+        Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ResourcePrefixLowercase}:${ImageTag}
+        Vcpus: 16
+        Memory: 127000
+        Environment:
+          - Name: SAMPLES_BUCKET
+            Value: !Sub ${SamplesBucket}
+          - Name: DATASETS_BUCKET
+            Value: !Sub ${DatasetsBucket}
+          - Name: BROAD_BUCKET
+            Value: !Sub ${BroadBucket}
+          - Name: DEPENDENCIES_BUCKET
+            Value: !Sub ${DependenciesBucket}
+          - Name: JOBRESULTS_BUCKET
+            Value: !Sub ${JobresultsBucket}
+          - Name: TOOL_IMAGE
+            Value: !Sub ${ResourcePrefixLowercase}:${ImageTag}
+          - Name: TOOL_TYPE
+            Value: !Sub ${ResourcePrefixLowercase}:${ImageTag}:align
+          - Name: AWS_REGION
+            Value: !Sub ${AWS::Region}
+        #Command:
+          # TODO: not even sure we need this.
+#          - align
+#          - Ref::NUMBEROFTHREADS
+#          - Ref::REFERENCE
+#          - Ref::FASTQ1
+#          - Ref::FASTQ2
+#          - Ref::SORTEDBAM
+        MountPoints:
+          - ContainerPath: "/scratch"
+            ReadOnly: false
+            SourceVolume: docker_scratch
+        Volumes:
+          - Name: docker_scratch
+            Host:
+              SourcePath: "/docker_scratch"
+  # TODO: add uploader and report here?
+  #  BatchJobDefinitionCallVariants:
+  #    Type: AWS::Batch::JobDefinition
+  #    Properties:
+  #      JobDefinitionName: !Sub ${ResourcePrefixLowercase}-call_variants-${JobTag}
+  #      Type: container
+  #      Parameters:
+  #        NUMBEROFTHREADS: "<NUMBEROFTHREADS>"
+  #        REFERENCE: "<REFERENCE>"
+  #        VCF: "<VCF>"
+  #        SORTEDBAM: "<SORTEDBAM>"
+  #      ContainerProperties:
+  #        Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ResourcePrefixLowercase}:${ImageTag}
+  #        Vcpus: 40
+  #        Memory: 50000
+  #        Environment:
+  #          - Name: SAMPLES_BUCKET
+  #            Value: !Sub ${SamplesBucket}
+  #          - Name: DATASETS_BUCKET
+  #            Value: !Sub ${DatasetsBucket}
+  #          - Name: BROAD_BUCKET
+  #            Value: !Sub ${BroadBucket}
+  #          - Name: DEPENDENCIES_BUCKET
+  #            Value: !Sub ${DependenciesBucket}
+  #          - Name: JOBRESULTS_BUCKET
+  #            Value: !Sub ${JobresultsBucket}
+  #          - Name: TOOL_IMAGE
+  #            Value: !Sub ${ResourcePrefixLowercase}:${ImageTag}
+  #          - Name: TOOL_TYPE
+  #            Value: !Sub ${ResourcePrefixLowercase}:${ImageTag}:call_variants
+  #          - Name: AWS_REGION
+  #            Value: !Sub ${AWS::Region}
+  #        Command:
+  #          - call_variants
+  #          - Ref::NUMBEROFTHREADS
+  #          - Ref::REFERENCE
+  #          - Ref::VCF
+  #          - Ref::SORTEDBAM
+  #        # MountPoints:
+  #        #   - ContainerPath: "/scratch"
+  #        #     ReadOnly: true
+  #        #     SourceVolume: docker_scratch
+  #        # Volumes:
+  #        #   - Name: docker_scratch
+  #        #     Host:
+  #        #       SourcePath: "/docker_scratch"
+  StatesExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - !Sub states.${AWS::Region}.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: BatchAccess
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - batch:SubmitJob
+                  - batch:DescribeJobs
+                  - batch:TerminateJob
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - events:PutTargets
+                  - events:PutRule
+                  - events:DescribeRule
+                Resource:
+                  - !Sub arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/StepFunctionsGetEventsForBatchJobsRule
+
+  StateMachinePipeline:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: !Sub ${ResourcePrefixLowercase}-${PipelineTag}
+      RoleArn: !GetAtt StatesExecutionRole.Arn
+      DefinitionString: !Sub |-
+        {
+            "Comment": "${ResourcePrefixLowercase}",
+            "StartAt": "IntSiteCaller",
+            "States": {
+                "IntSiteCaller": {
+                    "Type": "Task",
+                    "InputPath": "$",
+                    "ResultPath": "$.results.intsitecaller",
+                    "Resource": "arn:aws:states:::batch:submitJob.sync",
+                    "Parameters": {
+                        "JobName": "intsitecaller",
+                        "JobDefinition": "${ResourcePrefixLowercase}-intsitecaller-${JobTag}",
+                        "JobQueue": "${JobQueue}",
+                        "Parameters": {
+                          "BUCKET_NAME.$": "$.BucketName",
+                          "OBJECT_NAME.$": "$.ObjectName",
+                          "SAMPLE_ID.$": "$.SampleID",
+                          "SERIAL_WAIT.$": "$.SerialWait"
+                        },
+                        "ContainerOverrides": {
+                          "Environment": [
+                              {"Name": "SERIAL_WAIT", "Value.$": "$.SerialWait"},
+                              {"Name": "BUCKET_NAME", "Value.$": "$.BucketName"},
+                              {"Name": "OBJECT_NAME", "Value.$": "$.ObjectName"},
+                              {"Name": "SAMPLE_ID", "Value.$": "$.SampleID"},
+                              {"Name": "STATE_MACHINE_NAME", "Value.$": "$$.StateMachine.Name"},
+                              {"Name": "EXECUTION_NAME", "Value.$": "$$.Execution.Name"}
+                          ]
+                        }
+                    },
+                   "End": true
+                }
+          }
+        }
+
+  ECSTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ecs-tasks.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:PutObject
+                Resource:
+                  - !Sub arn:aws:s3:::${JobresultsBucket}
+                  - !Sub arn:aws:s3:::${JobresultsBucket}/*
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                Resource:
+                  - !Sub arn:aws:s3:::${SamplesBucket}
+                  - !Sub arn:aws:s3:::${SamplesBucket}/*
+                  - !Sub arn:aws:s3:::${DependenciesBucket}
+                  - !Sub arn:aws:s3:::${DependenciesBucket}/*
+                  - !Sub arn:aws:s3:::${DatasetsBucket}
+                  - !Sub arn:aws:s3:::${DatasetsBucket}/*
+                  - !Sub arn:aws:s3:::${BroadBucket}
+                  - !Sub arn:aws:s3:::${BroadBucket}/*
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+  ECSInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource:
+                  - !Sub arn:aws:s3:::${JobresultsBucket}
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:PutObject
+                Resource:
+                  - !Sub arn:aws:s3:::${JobresultsBucket}
+                  - !Sub arn:aws:s3:::${JobresultsBucket}/*
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:GetObjectVersion
+                  - s3:GetObject
+                Resource:
+                  - !Sub arn:aws:s3:::${SamplesBucket}
+                  - !Sub arn:aws:s3:::${SamplesBucket}/*
+                  - !Sub arn:aws:s3:::${DependenciesBucket}
+                  - !Sub arn:aws:s3:::${DependenciesBucket}/*
+                  - !Sub arn:aws:s3:::${DatasetsBucket}
+                  - !Sub arn:aws:s3:::${DatasetsBucket}/*
+                  - !Sub arn:aws:s3:::${BroadBucket}
+                  - !Sub arn:aws:s3:::${BroadBucket}/*
+        - PolicyName: CloudWatch-Access
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudwatch:PutMetricData
+                  - cloudwatch:ListMetrics
+                Resource: "*"
+        - PolicyName: EBS-Access
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:createVolume
+                  - ec2:attachVolume
+                  - ec2:deleteVolume
+                  - ec2:modifyInstanceAttribute
+                  - ec2:describeVolumes
+                Resource:
+                  - arn:aws:ec2::*:volume/*
+                  - arn:aws:ec2::*:instance/*
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+  ECSInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref ECSInstanceRole
+      InstanceProfileName: !Ref ECSInstanceRole
+  SpotFleetRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - spotfleet.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2SpotFleetTaggingRole
+  BatchServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - batch.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSBatchServiceRole
+  LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        BlockDeviceMappings:
+          - Ebs:
+              # root volume
+              Encrypted: True
+              DeleteOnTermination: True
+              VolumeSize: 256
+              VolumeType: gp3
+            DeviceName: /dev/xvda
+          - Ebs:
+              # docker image and metadata volume
+              Encrypted: True
+              DeleteOnTermination: True
+              VolumeSize: 4000  # genomics tooling images can be large, if the instance is long lived this can fill up
+              VolumeType: gp3
+            DeviceName: /dev/xvdcz
+          # - Ebs:
+          #     # scratch volume
+          #     SnapshotId: !Sub ${ScratchSnapshotId}
+          #     Encrypted: False
+          #     DeleteOnTermination: True
+          #     VolumeSize: 50
+          #     VolumeType: gp2
+          #   DeviceName: /dev/xvdb
+        UserData:
+          Fn::Base64: |
+            MIME-Version: 1.0
+            Content-Type: multipart/mixed; boundary="==BOUNDARY=="
+
+            --==BOUNDARY==
+            Content-Type: text/cloud-config; charset="us-ascii"
+
+            packages:
+            - amazon-ssm-agent
+
+            runcmd:
+            - start amazon-ssm-agent
+
+            # - sudo yum -y update
+            # - sudo mkdir /docker_scratch
+            # - sudo echo -e '/dev/xvdb1\t/docker_scratch\text4\tdefaults\t0\t0' | sudo tee -a /etc/fstab
+            # - sudo mount -a
+  BatchComputeEnvironmentSpot:
+    Type: AWS::Batch::ComputeEnvironment
+    Properties:
+      ComputeEnvironmentName: !Sub ${ResourcePrefixLowercase}-spot
+      ServiceRole: !GetAtt BatchServiceRole.Arn
+      Type: MANAGED
+      State: ENABLED
+      ComputeResources:
+        AllocationStrategy: SPOT_CAPACITY_OPTIMIZED
+        LaunchTemplate:
+          LaunchTemplateId: !Ref LaunchTemplate
+        SecurityGroupIds:
+          - !ImportValue SecurityGroup
+        BidPercentage: 50
+        InstanceRole: !GetAtt ECSInstanceProfile.Arn
+        InstanceTypes:
+          - r5.4xlarge
+        MinvCpus: 0
+        DesiredvCpus: 16
+        MaxvCpus: 256
+        SpotIamFleetRole: !GetAtt SpotFleetRole.Arn
+        Subnets:
+          - !ImportValue PrivateSubnetA
+          - !ImportValue PrivateSubnetB
+        Type: SPOT
+        Tags:
+          Name: !Sub ${ResourcePrefix}
+  BatchComputeEnvironmentOnDemand:
+    Type: AWS::Batch::ComputeEnvironment
+    Properties:
+      ComputeEnvironmentName: !Sub ${ResourcePrefixLowercase}-ondemand
+      ServiceRole: !GetAtt BatchServiceRole.Arn
+      Type: MANAGED
+      State: ENABLED
+      ComputeResources:
+        AllocationStrategy: BEST_FIT_PROGRESSIVE
+        LaunchTemplate:
+          LaunchTemplateId: !Ref LaunchTemplate
+        SecurityGroupIds:
+          - !ImportValue SecurityGroup
+        InstanceRole: !GetAtt ECSInstanceProfile.Arn
+        InstanceTypes:
+          - r5.4xlarge
+        MinvCpus: 0
+        DesiredvCpus: 16
+        MaxvCpus: 256
+        Subnets:
+          - !ImportValue PrivateSubnetA
+          - !ImportValue PrivateSubnetB
+        Type: EC2
+        Tags:
+          Name: !Sub ${ResourcePrefix}
+  BatchQueue:
+    Type: AWS::Batch::JobQueue
+    Properties:
+      JobQueueName: !Sub ${JobQueue}
+      Priority: 1000
+      State: ENABLED
+      ComputeEnvironmentOrder:
+        - Order: 1
+          ComputeEnvironment: !Ref BatchComputeEnvironmentSpot
+        - Order: 2
+          ComputeEnvironment: !Ref BatchComputeEnvironmentOnDemand
+
+Outputs:
+  JobQueue:
+    Value: !Sub ${JobQueue}
+  JobresultsBucket:
+    Value: !Sub ${JobresultsBucket}
+# aws cloudformation update-stack --stack-name CfnSentieon<XXXX> --template-body file://code_cfn.yml --output text; aws cloudformation wait stack-update-complete --stack-name CfnSentieon<XXXX>

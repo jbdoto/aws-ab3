@@ -1,0 +1,178 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: IntSiteCallerBucketConfiguration
+
+Parameters:
+  #  ResourcePrefix:
+  #    Type: String
+  #    Default: IntSiteCallerBuckets
+  ResourcePrefixLowercase:
+    Type: String
+    Default: intsitecallerbuckets
+  ContainerName:
+    Type: String
+    Default: intsitecaller-upload-handler
+  LambdaFunctionName:
+    Type: String
+    Default: intsitecaller-upload-handler
+  ContainerTag:
+    Type: String
+    Default: "1.0.0"
+  StateMachineName:
+    Type: String
+    Default: intsitecaller
+  StateMachineVersion:
+    Type: String
+    Default: "1_0_0"
+
+Resources:
+
+  LogsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${ResourcePrefixLowercase}-logs
+      AccessControl: LogDeliveryWrite
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+
+  FileUploadLambdaHandler:
+    Type: AWS::Lambda::Function
+    DependsOn: LogsBucket
+    Properties:
+      Code:
+        ImageUri: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ContainerName}:${ContainerTag}
+      Description: Invoke a function to create a log stream.
+      MemorySize: 128
+      Timeout: 30
+      PackageType: Image
+      Role: !GetAtt LambdaExecutionRole.Arn
+      #      Tracing: Active
+      #Handler: index.handler
+      #      Runtime: python3.8
+      FunctionName: !Sub ${LambdaFunctionName}
+      Environment:
+        Variables:
+          STATE_MACHINE_ARN: !Sub arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${StateMachineName}-${StateMachineVersion}
+
+  # Good post explaining how to wire this up:s
+  # https://medium.com/@windix/s3-bucket-notification-to-lambda-in-cloudformation-without-circular-reference-f8f56ec5342c
+
+  S3InvokeLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref FileUploadLambdaHandler
+      Principal: s3.amazonaws.com
+      SourceArn: !Sub arn:aws:s3:::${ResourcePrefixLowercase}-samples
+
+  SamplesBucket:
+    Type: AWS::S3::Bucket
+    DependsOn: FileUploadLambdaHandler
+    Properties:
+      BucketName: !Sub ${ResourcePrefixLowercase}-samples
+      LoggingConfiguration:
+        DestinationBucketName: !Sub ${LogsBucket}
+        LogFilePrefix: !Sub ${ResourcePrefixLowercase}-samples/
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: .tar.gz
+            Function: !GetAtt FileUploadLambdaHandler.Arn
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - !Sub lambda.${AWS::Region}.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: StateMachineAccess
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - states:*
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                Resource:
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${LambdaFunctionName}:*
+              - Effect: Allow
+                Action:
+                  - batch:SubmitJob
+                  - batch:DescribeJobs
+                  - batch:ListJobs
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource:
+                  - arn:aws:s3:::*
+
+  DatasetsBucket:
+    Type: AWS::S3::Bucket
+    DependsOn: LogsBucket
+    Properties:
+      BucketName: !Sub ${ResourcePrefixLowercase}-datasets
+      LoggingConfiguration:
+        DestinationBucketName: !Sub ${LogsBucket}
+        LogFilePrefix: !Sub ${ResourcePrefixLowercase}-datasets/
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+  DependenciesBucket:
+    Type: AWS::S3::Bucket
+    DependsOn: LogsBucket
+    Properties:
+      BucketName: !Sub ${ResourcePrefixLowercase}-dependencies
+      LoggingConfiguration:
+        DestinationBucketName: !Sub ${LogsBucket}
+        LogFilePrefix: !Sub ${ResourcePrefixLowercase}-dependencies/
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+  JobResultsBucket:
+    Type: AWS::S3::Bucket
+    DependsOn: LogsBucket
+    Properties:
+      BucketName: !Sub ${ResourcePrefixLowercase}-jobresults
+      LoggingConfiguration:
+        DestinationBucketName: !Sub ${LogsBucket}
+        LogFilePrefix: !Sub ${ResourcePrefixLowercase}-jobresults/
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+
+# aws cloudformation update-stack --stack-name IntSiteCallerBuckets --template-body file://code_cfn.yml --output text; aws cloudformation wait stack-update-complete --stack-name IntSiteCallerBuckets
