@@ -3,12 +3,9 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: IntSiteCallerBucketConfiguration
 
 Parameters:
-  #  ResourcePrefix:
-  #    Type: String
-  #    Default: IntSiteCallerBuckets
   ResourcePrefixLowercase:
     Type: String
-    Default: intsitecallerbuckets
+    Default: intsitecaller
   ContainerName:
     Type: String
     Default: intsitecaller-upload-handler
@@ -67,6 +64,7 @@ Resources:
       FunctionName: !Ref FileUploadLambdaHandler
       Principal: s3.amazonaws.com
       SourceArn: !Sub arn:aws:s3:::${ResourcePrefixLowercase}-samples
+      SourceAccount: !Sub ${AWS::AccountId}
 
   SamplesBucket:
     Type: AWS::S3::Bucket
