@@ -1,0 +1,50 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: IntSiteCallerDB
+
+Parameters:
+  ResourcePrefix:
+    Type: String
+    Default: IntSiteCaller
+  ResourcePrefixLowercase:
+    Type: String
+    Default: intsitecaller
+  DBMasterUsername:
+    Type: String
+    Description: The master username to create on the DB instance.
+    Default: bushmanlab
+  DBMasterUserPassword:
+    Type: String
+    Description: The master user password for the DB instance.
+    NoEcho: true
+
+Resources:
+
+  MariaDB:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      AllocatedStorage: '50'
+      DBInstanceClass: db.m5.large
+      MasterUsername:
+        Ref: DBMasterUsername
+      MasterUserPassword:
+        Ref: DBMasterUserPassword
+      DBName: sampledb
+      Engine: MariaDB
+      DBSubnetGroupName:
+        Ref: DBSubnetGroup
+      DeletionProtection: true
+      VPCSecurityGroups:
+        - !ImportValue DBSecurityGroup
+
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Bushman Lab sampledb subnet.
+      DBSubnetGroupName: sampledb
+      SubnetIds:
+        - !ImportValue PrivateSubnetA
+        - !ImportValue PrivateSubnetB
+      Tags:
+        - Key: Name
+          Value: !Sub ${ResourcePrefix}

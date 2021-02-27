@@ -43,7 +43,7 @@ Resources:
           - Fn::GetAZs: ""
       Tags:
         - Key: Name
-          Value: !Sub ${ResourcePrefix}
+          Value: !Sub ${ResourcePrefix}-PublicSubnetA
   PrivateSubnetA:
     Type: AWS::EC2::Subnet
     Properties:
@@ -55,7 +55,7 @@ Resources:
           - Fn::GetAZs: ""
       Tags:
         - Key: Name
-          Value: !Sub ${ResourcePrefix}
+          Value: !Sub ${ResourcePrefix}-PrivateSubnetA
   PrivateSubnetB:
     Type: AWS::EC2::Subnet
     Properties:
@@ -68,7 +68,7 @@ Resources:
           - Fn::GetAZs: ""
       Tags:
         - Key: Name
-          Value: !Sub ${ResourcePrefix}
+          Value: !Sub ${ResourcePrefix}-PrivateSubnetB
   EIPNatGateway:
     Type: "AWS::EC2::EIP"
     Properties:
@@ -153,6 +153,21 @@ Resources:
       GroupId: !Ref SecurityGroup
       SourceSecurityGroupId: !Ref SecurityGroup
 
+  DBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow MariaDB ingress.
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - Description: Allow inbound traffic
+          FromPort: 3306
+          ToPort: 3306          
+          IpProtocol: "tcp"
+          SourceSecurityGroupId: !Ref SecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub ${ResourcePrefix}-DBIngress
+
 Outputs:
   PrivateSubnetA:
     Value: !Sub ${PrivateSubnetA}
@@ -169,6 +184,10 @@ Outputs:
     Export:
       Name: SecurityGroup
       Value: !Sub ${SecurityGroup}
-
+  DBSecurityGroup:
+    Value: !Sub ${DBSecurityGroup}
+    Export:
+      Name: DBSecurityGroup
+      Value: !Sub ${DBSecurityGroup}
 
 # aws cloudformation update-stack --stack-name IntSiteCallerVPC --template-body file://code_cfn.yml --output text; aws cloudformation wait stack-update-complete --stack-name IntSiteCallerVPC
