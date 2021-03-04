@@ -1,0 +1,83 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: IntSiteCallerAlerts
+
+Parameters:
+  intSiteCallerJobName:
+    Type: String
+    Default: intsitecaller
+
+Resources:
+
+  BatchEmailSNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: intSiteCaller-email-notification-sns
+      Subscription:
+        - Endpoint: "jeffdoto@amazon.com"
+          Protocol: email
+
+#  BatchSNSSubscription:
+#    Type: AWS::SNS::Subscription
+#    Properties:
+#      FilterPolicy: Json
+#      Protocol: email
+#      Region: us-east-1
+#      TopicArn: !Ref BatchEmailSNSTopic
+
+  # example event: https://docs.aws.amazon.com/batch/latest/userguide/batch_cwe_events.html
+  # https://docs.aws.amazon.com/eventbridge/latest/userguide/filtering-examples-structure.html
+  # https://docs.aws.amazon.com/batch/latest/userguide/batch_sns_tutorial.html
+  # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-events-rule.html
+  BatchEventFailedRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Notifies user that a job failed.
+      EventPattern: |-
+        {
+          "EventPattern": {
+            "source": [
+              "aws.batch"
+            ],
+            "detail-type": [
+              "Batch Job State Change"
+            ],
+            "detail": {
+              "status": [
+                "FAILED"
+              ]
+            }
+          }
+        }
+      State: "ENABLED"
+      Targets:
+        - Arn: !Ref BatchEmailSNSTopic
+          Id: intsitecaller-job-failed
+
+  BatchEventParentSucceededRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Notifies user when parent job succeeds
+      EventPattern: !Sub |-
+        {
+          "EventPattern": {
+            "source": [
+                "aws.batch"
+            ],
+            "detail-type": [
+                "Batch Job State Change"
+            ],
+            "detail": {
+              "status": [
+                  "SUCCEEDED"
+              ],
+              "jobName": [
+                  "${intSiteCallerJobName}"
+              ]
+            }
+          }
+        }
+      State: "ENABLED"
+      Targets:
+        - Arn: !Ref BatchEmailSNSTopic
+          Id: intsitecaller-parent-job-success
