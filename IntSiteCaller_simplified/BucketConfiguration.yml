@@ -1,6 +1,7 @@
 ---
 AWSTemplateFormatVersion: '2010-09-09'
 Description: IntSiteCallerBucketConfiguration
+Transform: AWS::Serverless-2016-10-31
 
 Parameters:
   ResourcePrefixLowercase:
@@ -36,11 +37,10 @@ Resources:
         RestrictPublicBuckets: True
 
   FileUploadLambdaHandler:
-    Type: AWS::Lambda::Function
+    Type: AWS::Serverless::Function
     DependsOn: LogsBucket
     Properties:
-      Code:
-        ImageUri: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ContainerName}:${ContainerTag}
+      ImageUri: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ContainerName}:${ContainerTag}
       Description: Invoke a function to create a log stream.
       MemorySize: 128
       Timeout: 30
@@ -53,22 +53,75 @@ Resources:
       Environment:
         Variables:
           STATE_MACHINE_ARN: !Sub arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${StateMachineName}-${StateMachineVersion}
+          RUN_COMMAND: "Rscript /intSiteCaller/intSiteCaller.R"
+          SERIAL_WAIT: "TRUE"
+          JOB_TYPE: "PARENT"
 
-  # Good post explaining how to wire this up:s
-  # https://medium.com/@windix/s3-bucket-notification-to-lambda-in-cloudformation-without-circular-reference-f8f56ec5342c
+      Events:
+        EventBridgeEvent:
+          Type: EventBridgeRule
+          Properties:
+            Pattern:              
+              source:
+                - aws.s3
+              detail-type:
+                - AWS API Call via CloudTrail
+              detail:
+                eventSource:
+                  - s3.amazonaws.com
+                eventName:
+                  - CopyObject
+                  - PutObject
+                  - CompleteMultipartUpload
+                  - RestoreObject
+                requestParameters:
+                  bucketName:
+                    - !Ref SamplesBucket
+                  key:
+                    - prefix: 'samples/'
 
-  S3InvokeLambdaPermission:
-    Type: AWS::Lambda::Permission
+  CloudTrailBucketPolicy:
+    DependsOn:
+      - SamplesBucket
+    Type: AWS::S3::BucketPolicy
     Properties:
-      Action: lambda:InvokeFunction
-      FunctionName: !Ref FileUploadLambdaHandler
-      Principal: s3.amazonaws.com
-      SourceArn: !Sub arn:aws:s3:::${ResourcePrefixLowercase}-samples
-      SourceAccount: !Sub ${AWS::AccountId}
+      Bucket: !Ref SamplesBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: "AWSCloudTrailAclCheck"
+            Effect: Allow
+            Principal:
+              Service: 'cloudtrail.amazonaws.com'
+            Action: "s3:GetBucketAcl"
+            Resource: !Sub arn:aws:s3:::${SamplesBucket}
+          - Sid: "AWSCloudTrailWrite"
+            Effect: Allow
+            Principal:
+              Service: 'cloudtrail.amazonaws.com'
+            Action: "*"
+            Resource: !Sub arn:aws:s3:::${SamplesBucket}/AWSLogs/${AWS::AccountId}/*
+            Condition:
+              StringEquals:
+                's3:x-amz-acl': 'bucket-owner-full-control'
 
+    # Enable CloudTrail
+  SamplesBucketCloudTrail:
+    Type: AWS::CloudTrail::Trail
+    DependsOn:
+      - SamplesBucket
+      - CloudTrailBucketPolicy
+    Properties:
+      S3BucketName: !Ref SamplesBucket
+      IsLogging: true
+      EventSelectors:
+        - DataResources:
+            - Type: AWS::S3::Object
+              Values:
+                - !Sub "arn:aws:s3:::${SamplesBucket}/samples"
   SamplesBucket:
     Type: AWS::S3::Bucket
-    DependsOn: FileUploadLambdaHandler
+    DependsOn: LogsBucket
     Properties:
       BucketName: !Sub ${ResourcePrefixLowercase}-samples
       LoggingConfiguration:
@@ -79,15 +132,6 @@ Resources:
         BlockPublicPolicy: True
         IgnorePublicAcls: True
         RestrictPublicBuckets: True
-      NotificationConfiguration:
-        LambdaConfigurations:
-          - Event: s3:ObjectCreated:*
-            Filter:
-              S3Key:
-                Rules:
-                  - Name: suffix
-                    Value: .tar.gz
-            Function: !GetAtt FileUploadLambdaHandler.Arn
 
   LambdaExecutionRole:
     Type: AWS::IAM::Role
@@ -146,6 +190,7 @@ Resources:
         BlockPublicPolicy: True
         IgnorePublicAcls: True
         RestrictPublicBuckets: True
+
   DependenciesBucket:
     Type: AWS::S3::Bucket
     DependsOn: LogsBucket
@@ -159,6 +204,7 @@ Resources:
         BlockPublicPolicy: True
         IgnorePublicAcls: True
         RestrictPublicBuckets: True
+
   JobResultsBucket:
     Type: AWS::S3::Bucket
     DependsOn: LogsBucket

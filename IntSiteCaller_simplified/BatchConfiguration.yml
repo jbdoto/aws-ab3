@@ -42,17 +42,23 @@ Resources:
     Type: AWS::Batch::JobDefinition
     Properties:
       JobDefinitionName: !Sub ${ResourcePrefixLowercase}-intsitecaller-${JobTag}
+      Timeout:
+        AttemptDurationSeconds: 7200 # 2 hour timeout
       Type: container
       Parameters:
         BUCKET_NAME: "intsitecaller-samples"
         OBJECT_NAME: "STEP-FUNCTION-WILL-PROVIDE"
         SAMPLE_ID: "STEP-FUNCTION-WILL-PROVIDE"
         SERIAL_WAIT: "TRUE"
+        RUN_COMMAND: "STEP-FUNCTION-WILL-PROVIDE"
+        FILENAME: "STEP-FUNCTION-WILL-PROVIDE"
+        PARENT_AWS_BATCH_JOB_ID: "0"
+        PARENT_AWS_BATCH_JOB_ATTEMPT: "0"
 
       ContainerProperties:
         Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ResourcePrefixLowercase}:${ImageTag}
-        Vcpus: 16
-        Memory: 120000
+        Vcpus: 4
+        Memory: 30000
         Environment:
           - Name: SAMPLES_BUCKET
             Value: !Sub ${SamplesBucket}
@@ -64,20 +70,12 @@ Resources:
             Value: !Sub ${DependenciesBucket}
           - Name: JOBRESULTS_BUCKET
             Value: !Sub ${JobresultsBucket}
-          - Name: TOOL_IMAGE
-            Value: !Sub ${ResourcePrefixLowercase}:${ImageTag}
-          - Name: TOOL_TYPE
-            Value: !Sub ${ResourcePrefixLowercase}:${ImageTag}:align
           - Name: AWS_REGION
             Value: !Sub ${AWS::Region}
-        #Command:
-          # TODO: not even sure we need this.
-#          - align
-#          - Ref::NUMBEROFTHREADS
-#          - Ref::REFERENCE
-#          - Ref::FASTQ1
-#          - Ref::FASTQ2
-#          - Ref::SORTEDBAM
+            # https://docs.aws.amazon.com/AmazonECS/latest/developerguide/container-metadata.html
+            # https://stackoverflow.com/questions/48819809/how-to-get-task-id-from-within-ecs-container
+          - Name: ECS_ENABLE_CONTAINER_METADATA
+            Value: 'true'
         MountPoints:
           - ContainerPath: "/scratch"
             ReadOnly: false
@@ -85,7 +83,7 @@ Resources:
         Volumes:
           - Name: docker_scratch
             Host:
-              SourcePath: "/docker_scratch"
+              SourcePath: "/scratch"
   # TODO: add uploader and report here?
   #  BatchJobDefinitionCallVariants:
   #    Type: AWS::Batch::JobDefinition
@@ -168,6 +166,8 @@ Resources:
     Properties:
       StateMachineName: !Sub ${ResourcePrefixLowercase}-${PipelineTag}
       RoleArn: !GetAtt StatesExecutionRole.Arn
+      # See this doc for AWS included job vars:
+      # https://docs.aws.amazon.com/batch/latest/userguide/job_env_vars.html
       DefinitionString: !Sub |-
         {
             "Comment": "${ResourcePrefixLowercase}",
@@ -186,16 +186,25 @@ Resources:
                           "BUCKET_NAME.$": "$.BucketName",
                           "OBJECT_NAME.$": "$.ObjectName",
                           "SAMPLE_ID.$": "$.SampleID",
-                          "SERIAL_WAIT.$": "$.SerialWait"
+                          "SERIAL_WAIT.$": "$.SerialWait",
+                          "RUN_COMMAND.$": "$.RunCommand",
+                          "JOB_TYPE.$": "$.JobType",
+                          "FILENAME.$": "$.Filename"
                         },
                         "ContainerOverrides": {
                           "Environment": [
+                              {"Name": "FILENAME", "Value.$": "$.Filename"},
+                              {"Name": "RUN_COMMAND", "Value.$": "$.RunCommand"},
+                              {"Name": "JOB_TYPE", "Value.$": "$.JobType"},
                               {"Name": "SERIAL_WAIT", "Value.$": "$.SerialWait"},
                               {"Name": "BUCKET_NAME", "Value.$": "$.BucketName"},
                               {"Name": "OBJECT_NAME", "Value.$": "$.ObjectName"},
                               {"Name": "SAMPLE_ID", "Value.$": "$.SampleID"},
                               {"Name": "STATE_MACHINE_NAME", "Value.$": "$$.StateMachine.Name"},
-                              {"Name": "EXECUTION_NAME", "Value.$": "$$.Execution.Name"}
+                              {"Name": "EXECUTION_NAME", "Value.$": "$$.Execution.Name"},
+                              {"Name": "JOB_NAME", "Value": "intsitecaller"},
+                              {"Name": "JOB_DEFINITION", "Value": "${ResourcePrefixLowercase}-intsitecaller-${JobTag}"},
+                              {"Name": "JOB_QUEUE", "Value": "${JobQueue}"}
                           ]
                         }
                     },
@@ -244,8 +253,19 @@ Resources:
                   - !Sub arn:aws:s3:::${DatasetsBucket}/*
                   - !Sub arn:aws:s3:::${BroadBucket}
                   - !Sub arn:aws:s3:::${BroadBucket}/*
+        - PolicyName: BatchAccess
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - batch:*
+                Resource:
+                  - !Sub arn:aws:batch:${AWS::Region}:${AWS::AccountId}:job-definition/*
+                  - !Sub arn:aws:batch:${AWS::Region}:${AWS::AccountId}:job-queue/*
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
   ECSInstanceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -290,6 +310,17 @@ Resources:
                   - !Sub arn:aws:s3:::${DatasetsBucket}/*
                   - !Sub arn:aws:s3:::${BroadBucket}
                   - !Sub arn:aws:s3:::${BroadBucket}/*
+        - PolicyName: BatchAccess
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - batch:*
+                Resource:
+                  - !Sub arn:aws:batch:${AWS::Region}:${AWS::AccountId}:job-definition/*
+                  - !Sub arn:aws:batch:${AWS::Region}:${AWS::AccountId}:job-queue/*
+
         - PolicyName: CloudWatch-Access
           PolicyDocument:
             Version: 2012-10-17
@@ -316,12 +347,14 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
         - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+
   ECSInstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Roles:
         - !Ref ECSInstanceRole
       InstanceProfileName: !Ref ECSInstanceRole
+
   SpotFleetRole:
     Type: AWS::IAM::Role
     Properties:
@@ -336,6 +369,7 @@ Resources:
               - sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonEC2SpotFleetTaggingRole
+
   BatchServiceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -350,8 +384,10 @@ Resources:
               - sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSBatchServiceRole
+
   LaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
+    DependsOn: FSxLustreWorkingFileSystem
     Properties:
       LaunchTemplateData:
         BlockDeviceMappings:
@@ -362,13 +398,13 @@ Resources:
               VolumeSize: 256
               VolumeType: gp3
             DeviceName: /dev/xvda
-          - Ebs:
-              # docker image and metadata volume
-              Encrypted: True
-              DeleteOnTermination: True
-              VolumeSize: 4000  # genomics tooling images can be large, if the instance is long lived this can fill up
-              VolumeType: gp3
-            DeviceName: /dev/xvdcz
+#          - Ebs:
+#              # docker image and metadata volume
+#              Encrypted: True
+#              DeleteOnTermination: True
+#              VolumeSize: 4000  # genomics tooling images can be large, if the instance is long lived this can fill up
+#              VolumeType: gp3
+#            DeviceName: /dev/xvdcz
           # - Ebs:
           #     # scratch volume
           #     SnapshotId: !Sub ${ScratchSnapshotId}
@@ -378,7 +414,7 @@ Resources:
           #     VolumeType: gp2
           #   DeviceName: /dev/xvdb
         UserData:
-          Fn::Base64: |
+          Fn::Base64: !Sub |-
             MIME-Version: 1.0
             Content-Type: multipart/mixed; boundary="==BOUNDARY=="
 
@@ -386,19 +422,21 @@ Resources:
             Content-Type: text/cloud-config; charset="us-ascii"
 
             packages:
+            - lustre-client
             - amazon-ssm-agent
 
             runcmd:
             - start amazon-ssm-agent
 
-            # - sudo yum -y update
-            # - sudo mkdir /docker_scratch
-            # - sudo echo -e '/dev/xvdb1\t/docker_scratch\text4\tdefaults\t0\t0' | sudo tee -a /etc/fstab
-            # - sudo mount -a
+            - mkdir -p /scratch/results
+            - mount -t lustre ${FSxLustreWorkingFileSystem}.fsx.${AWS::Region}.amazonaws.com@tcp:/fsx /scratch/results
+
+
   BatchComputeEnvironmentSpot:
     Type: AWS::Batch::ComputeEnvironment
     Properties:
-      ComputeEnvironmentName: !Sub ${ResourcePrefixLowercase}-spot
+      # TODO: make this dynamically pull in version...can't modify compute without changing the names...
+      ComputeEnvironmentName: !Sub ${ResourcePrefixLowercase}-spot-1_0_0
       ServiceRole: !GetAtt BatchServiceRole.Arn
       Type: MANAGED
       State: ENABLED
@@ -411,9 +449,9 @@ Resources:
         BidPercentage: 50
         InstanceRole: !GetAtt ECSInstanceProfile.Arn
         InstanceTypes:
-          - r5.4xlarge
+          - r5.xlarge
         MinvCpus: 0
-        DesiredvCpus: 16
+        DesiredvCpus: 48
         MaxvCpus: 256
         SpotIamFleetRole: !GetAtt SpotFleetRole.Arn
         Subnets:
@@ -422,10 +460,11 @@ Resources:
         Type: SPOT
         Tags:
           Name: !Sub ${ResourcePrefix}
+
   BatchComputeEnvironmentOnDemand:
     Type: AWS::Batch::ComputeEnvironment
     Properties:
-      ComputeEnvironmentName: !Sub ${ResourcePrefixLowercase}-ondemand
+      ComputeEnvironmentName: !Sub ${ResourcePrefixLowercase}-ondemand-1_0_0
       ServiceRole: !GetAtt BatchServiceRole.Arn
       Type: MANAGED
       State: ENABLED
@@ -437,9 +476,10 @@ Resources:
           - !ImportValue SecurityGroup
         InstanceRole: !GetAtt ECSInstanceProfile.Arn
         InstanceTypes:
-          - r5.4xlarge
+          - r5.xlarge
         MinvCpus: 0
-        DesiredvCpus: 16
+        # each r5.xlarge has 4 cpus, so standing up 12 nodes for parallel processing
+        DesiredvCpus: 48
         MaxvCpus: 256
         Subnets:
           - !ImportValue PrivateSubnetA
@@ -458,6 +498,41 @@ Resources:
           ComputeEnvironment: !Ref BatchComputeEnvironmentSpot
         - Order: 2
           ComputeEnvironment: !Ref BatchComputeEnvironmentOnDemand
+
+
+  # TODO: set this up...basically each component, Lambda, Step, Batch, should send alerts to it.
+#  SNSEmailTopic:
+#    Type: AWS::SNS::Topic
+#    Properties:
+#      ContentBasedDeduplication: true
+#      DisplayName: intSiteCaller-email-notification-sns
+#      FifoTopic: true
+#      KmsMasterKeyId: String
+#      Subscription:
+#        - Subscription
+#      Tags:
+#        - Tag
+#      TopicName: String
+
+## https://aws.amazon.com/blogs/storage/using-amazon-fsx-for-lustre-for-genomics-workflows-on-aws/
+
+  FSxLustreWorkingFileSystem:
+    Type: AWS::FSx::FileSystem
+    Properties:
+      FileSystemType: LUSTRE
+      LustreConfiguration:
+        AutoImportPolicy: NEW_CHANGED
+          # There are some additional performance tuning aspects here.
+        ExportPath: "s3://intsitecaller-samples/results/"
+        ImportPath: "s3://intsitecaller-samples/samples/"
+        WeeklyMaintenanceStartTime:  "7:17:00" #Sundays at our noon EST, clock is in UTC
+      #https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-fsx-filesystem.html
+      StorageCapacity: 1200 # 1.2TB
+      SecurityGroupIds:
+        - !ImportValue SecurityGroup
+      SubnetIds:
+        - !ImportValue PrivateSubnetA
+
 
 Outputs:
   JobQueue:
