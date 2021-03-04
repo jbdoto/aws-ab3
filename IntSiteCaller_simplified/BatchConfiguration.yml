@@ -54,11 +54,12 @@ Resources:
         FILENAME: "STEP-FUNCTION-WILL-PROVIDE"
         PARENT_AWS_BATCH_JOB_ID: "0"
         PARENT_AWS_BATCH_JOB_ATTEMPT: "0"
-
+      RetryStrategy:
+        Attempts: 2
       ContainerProperties:
         Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ResourcePrefixLowercase}:${ImageTag}
-        Vcpus: 4
-        Memory: 30000
+        Vcpus: 1
+        Memory: 1000
         Environment:
           - Name: SAMPLES_BUCKET
             Value: !Sub ${SamplesBucket}
@@ -398,21 +399,6 @@ Resources:
               VolumeSize: 256
               VolumeType: gp3
             DeviceName: /dev/xvda
-#          - Ebs:
-#              # docker image and metadata volume
-#              Encrypted: True
-#              DeleteOnTermination: True
-#              VolumeSize: 4000  # genomics tooling images can be large, if the instance is long lived this can fill up
-#              VolumeType: gp3
-#            DeviceName: /dev/xvdcz
-          # - Ebs:
-          #     # scratch volume
-          #     SnapshotId: !Sub ${ScratchSnapshotId}
-          #     Encrypted: False
-          #     DeleteOnTermination: True
-          #     VolumeSize: 50
-          #     VolumeType: gp2
-          #   DeviceName: /dev/xvdb
         UserData:
           Fn::Base64: !Sub |-
             MIME-Version: 1.0
@@ -450,8 +436,13 @@ Resources:
         InstanceRole: !GetAtt ECSInstanceProfile.Arn
         InstanceTypes:
           - r5.xlarge
+          - r5.2xlarge
+          - r5.4xlarge
+          - r5.8xlarge
+          - r5.12xlarge
+          - r5.24xlarge
         MinvCpus: 0
-        DesiredvCpus: 48
+        DesiredvCpus: 0
         MaxvCpus: 256
         SpotIamFleetRole: !GetAtt SpotFleetRole.Arn
         Subnets:
@@ -477,9 +468,13 @@ Resources:
         InstanceRole: !GetAtt ECSInstanceProfile.Arn
         InstanceTypes:
           - r5.xlarge
+          - r5.2xlarge
+          - r5.4xlarge
+          - r5.8xlarge
+          - r5.12xlarge
+          - r5.24xlarge
         MinvCpus: 0
-        # each r5.xlarge has 4 cpus, so standing up 12 nodes for parallel processing
-        DesiredvCpus: 48
+        DesiredvCpus: 0
         MaxvCpus: 256
         Subnets:
           - !ImportValue PrivateSubnetA
@@ -499,20 +494,6 @@ Resources:
         - Order: 2
           ComputeEnvironment: !Ref BatchComputeEnvironmentOnDemand
 
-
-  # TODO: set this up...basically each component, Lambda, Step, Batch, should send alerts to it.
-#  SNSEmailTopic:
-#    Type: AWS::SNS::Topic
-#    Properties:
-#      ContentBasedDeduplication: true
-#      DisplayName: intSiteCaller-email-notification-sns
-#      FifoTopic: true
-#      KmsMasterKeyId: String
-#      Subscription:
-#        - Subscription
-#      Tags:
-#        - Tag
-#      TopicName: String
 
 ## https://aws.amazon.com/blogs/storage/using-amazon-fsx-for-lustre-for-genomics-workflows-on-aws/
 
