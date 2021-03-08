@@ -18,6 +18,9 @@ Parameters:
   PipelineTag:
     Type: String
     Default: "1_0_0"
+  ComputeEnvironmentVersion:
+    Type: String
+    Default: "1_0_2"
   JobQueue:
     Type: String
     Default: intsitecaller-job-queue
@@ -85,52 +88,7 @@ Resources:
           - Name: docker_scratch
             Host:
               SourcePath: "/scratch"
-  # TODO: add uploader and report here?
-  #  BatchJobDefinitionCallVariants:
-  #    Type: AWS::Batch::JobDefinition
-  #    Properties:
-  #      JobDefinitionName: !Sub ${ResourcePrefixLowercase}-call_variants-${JobTag}
-  #      Type: container
-  #      Parameters:
-  #        NUMBEROFTHREADS: "<NUMBEROFTHREADS>"
-  #        REFERENCE: "<REFERENCE>"
-  #        VCF: "<VCF>"
-  #        SORTEDBAM: "<SORTEDBAM>"
-  #      ContainerProperties:
-  #        Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ResourcePrefixLowercase}:${ImageTag}
-  #        Vcpus: 40
-  #        Memory: 50000
-  #        Environment:
-  #          - Name: SAMPLES_BUCKET
-  #            Value: !Sub ${SamplesBucket}
-  #          - Name: DATASETS_BUCKET
-  #            Value: !Sub ${DatasetsBucket}
-  #          - Name: BROAD_BUCKET
-  #            Value: !Sub ${BroadBucket}
-  #          - Name: DEPENDENCIES_BUCKET
-  #            Value: !Sub ${DependenciesBucket}
-  #          - Name: JOBRESULTS_BUCKET
-  #            Value: !Sub ${JobresultsBucket}
-  #          - Name: TOOL_IMAGE
-  #            Value: !Sub ${ResourcePrefixLowercase}:${ImageTag}
-  #          - Name: TOOL_TYPE
-  #            Value: !Sub ${ResourcePrefixLowercase}:${ImageTag}:call_variants
-  #          - Name: AWS_REGION
-  #            Value: !Sub ${AWS::Region}
-  #        Command:
-  #          - call_variants
-  #          - Ref::NUMBEROFTHREADS
-  #          - Ref::REFERENCE
-  #          - Ref::VCF
-  #          - Ref::SORTEDBAM
-  #        # MountPoints:
-  #        #   - ContainerPath: "/scratch"
-  #        #     ReadOnly: true
-  #        #     SourceVolume: docker_scratch
-  #        # Volumes:
-  #        #   - Name: docker_scratch
-  #        #     Host:
-  #        #       SourcePath: "/docker_scratch"
+
   StatesExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -421,8 +379,7 @@ Resources:
   BatchComputeEnvironmentSpot:
     Type: AWS::Batch::ComputeEnvironment
     Properties:
-      # TODO: make this dynamically pull in version...can't modify compute without changing the names...
-      ComputeEnvironmentName: !Sub ${ResourcePrefixLowercase}-spot-1_0_0
+      ComputeEnvironmentName: !Sub ${ResourcePrefixLowercase}-spot-${ComputeEnvironmentVersion}
       ServiceRole: !GetAtt BatchServiceRole.Arn
       Type: MANAGED
       State: ENABLED
@@ -435,7 +392,6 @@ Resources:
         BidPercentage: 50
         InstanceRole: !GetAtt ECSInstanceProfile.Arn
         InstanceTypes:
-          - r5.xlarge
           - r5.2xlarge
           - r5.4xlarge
           - r5.8xlarge
@@ -455,7 +411,7 @@ Resources:
   BatchComputeEnvironmentOnDemand:
     Type: AWS::Batch::ComputeEnvironment
     Properties:
-      ComputeEnvironmentName: !Sub ${ResourcePrefixLowercase}-ondemand-1_0_0
+      ComputeEnvironmentName: !Sub ${ResourcePrefixLowercase}-ondemand-${ComputeEnvironmentVersion}
       ServiceRole: !GetAtt BatchServiceRole.Arn
       Type: MANAGED
       State: ENABLED
@@ -467,7 +423,6 @@ Resources:
           - !ImportValue SecurityGroup
         InstanceRole: !GetAtt ECSInstanceProfile.Arn
         InstanceTypes:
-          - r5.xlarge
           - r5.2xlarge
           - r5.4xlarge
           - r5.8xlarge
