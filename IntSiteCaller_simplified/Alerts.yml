@@ -1,121 +1,93 @@
 ---
 AWSTemplateFormatVersion: '2010-09-09'
 Description: IntSiteCallerAlerts
+Transform: AWS::Serverless-2016-10-31
 
 Parameters:
   intSiteCallerJobName:
     Type: String
     Default: intsitecaller
+  LambdaFunctionName:
+    Type: String
+    Default: ses-email-handler
+  ContainerName:
+    Type: String
+    Default: ses-email-handler
+  ContainerTag:
+    Type: String
+    Default: 1.0.0
 
 Resources:
 
-  BatchEmailSNSTopic:
-    Type: AWS::SNS::Topic
-    Properties:
-      DisplayName: intSiteCaller-email-notification-sns
-      Subscription:
-        - Endpoint: "jeffdoto@amazon.com"
-          Protocol: email
-
-  BatchEmailSNSTopicPolicy:
-    Type: AWS::SNS::TopicPolicy
-    Properties:
-      PolicyDocument: !Sub |-
-        {
-          "Version": "2012-10-17",
-          "Id": "__default_policy_ID",
-          "Statement": [
-            {
-              "Sid": "__default_statement_ID",
-              "Effect": "Allow",
-              "Principal": {
-                "AWS": "*"
-              },
-              "Action": [
-                "SNS:Subscribe",
-                "SNS:ListSubscriptionsByTopic",
-                "SNS:DeleteTopic",
-                "SNS:GetTopicAttributes",
-                "SNS:Publish",
-                "SNS:RemovePermission",
-                "SNS:AddPermission",
-                "SNS:Receive",
-                "SNS:SetTopicAttributes"
-              ],
-              "Resource": "${BatchEmailSNSTopic}",
-              "Condition": {
-                "StringEquals": {
-                  "AWS:SourceOwner": "${AWS::AccountId}"
-                }
-              }
-            },
-            {
-              "Sid": "Allow_Publish_Events",
-              "Effect": "Allow",
-              "Principal": {
-                "Service": "events.amazonaws.com"
-              },
-              "Action": "sns:Publish",
-              "Resource": "${BatchEmailSNSTopic}"
-            }
-          ]
-        }
-      Topics:
-        - !Ref BatchEmailSNSTopic
-
-  # example event: https://docs.aws.amazon.com/batch/latest/userguide/batch_cwe_events.html
-  # https://docs.aws.amazon.com/eventbridge/latest/userguide/filtering-examples-structure.html
-  # https://docs.aws.amazon.com/batch/latest/userguide/batch_sns_tutorial.html
-  # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-events-rule.html
-  BatchEventRuleRole:
-    Type: "AWS::IAM::Role"
+  SESLambdaExecutionRole:
+    Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
-        Version: "2012-10-17"
+        Version: 2012-10-17
         Statement:
           - Effect: Allow
             Principal:
-              Service: events.amazonaws.com
+              Service:
+                - !Sub lambda.${AWS::Region}.amazonaws.com
             Action:
-              - 'sts:AssumeRole'
-      Description: Allows events to send messages to SNS.
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: SESLambdaPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                Resource:
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${LambdaFunctionName}:*
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/AmazonSNSFullAccess
+        - arn:aws:iam::aws:policy/AmazonSESFullAccess
 
-  BatchEventFailedRule:
-    Type: AWS::Events::Rule
-    Properties:
-      Description: Notifies user that a job failed.
-      EventPattern:
-        source:
-          - aws.batch
-        detail-type:
-          - Batch Job State Change
-        detail:
-          status:
-            - FAILED
-      RoleArn: !GetAtt BatchEventRuleRole.Arn
-      State: ENABLED
-      Targets:
-        - Arn: !Ref BatchEmailSNSTopic
-          Id: intsitecaller-job-failed
 
-  BatchEventParentSucceededRule:
-    Type: AWS::Events::Rule
+  SESEmailHandler:
+    Type: AWS::Serverless::Function
     Properties:
-      Description: Notifies user when parent job succeeds
-      EventPattern:
-        source:
-          - aws.batch
-        detail-type:
-          - Batch Job State Change
-        detail:
-          status:
-            - SUCCEEDED
-          jobName:
-            - !Sub ${intSiteCallerJobName}
-      RoleArn: !GetAtt BatchEventRuleRole.Arn
-      State: ENABLED
-      Targets:
-        - Arn: !Ref BatchEmailSNSTopic
-          Id: intsitecaller-parent-job-success
+      ImageUri: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ContainerName}:${ContainerTag}
+      Description: Sends an email on an event trigger.
+      MemorySize: 128
+      Timeout: 30
+      PackageType: Image
+      Role: !GetAtt SESLambdaExecutionRole.Arn
+      FunctionName: !Sub ${LambdaFunctionName}
+      Environment:
+        Variables:
+          FROM_ADDRESS: "Jeffrey Doto <jeffdoto@amazon.com>" # note SES must be configured with this allowed email.
+          TO_ADDRESS: "jeffdoto@amazon.com"
+
+      Events:
+        BatchEventParentSucceededRule:
+          Type: EventBridgeRule
+          Properties:
+            Pattern:
+              source:
+                - aws.batch
+              detail-type:
+                - Batch Job State Change
+              detail:
+                status:
+                  - SUCCEEDED
+                jobName:
+                  - !Sub ${intSiteCallerJobName}
+        BatchEventFailedRule:
+          Type: EventBridgeRule
+          Properties:
+            Pattern:
+              source:
+                - aws.batch
+              detail-type:
+                - Batch Job State Change
+              detail:
+                status:
+                  - FAILED
