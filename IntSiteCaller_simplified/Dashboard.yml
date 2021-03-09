@@ -31,99 +31,696 @@ Resources:
         Fn::Sub: |-
           {
             "widgets": [
-                {
-                    "type": "metric",
-                    "x": 0,
-                    "y": 3,
-                    "width": 12,
-                    "height": 3,
-                    "properties": {
-                        "metrics": [
-                            [ "AWS/States", "ExecutionsSucceeded", "StateMachineArn", "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${StateMachineNameLowerCase}-${PipelineVersion}", { "label": "Succeeded", "color": "#2ca02c" } ],
-                            [ ".", "ExecutionsTimedOut", ".", "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${StateMachineNameLowerCase}-${PipelineVersion}", { "label": "Timed Out" } ],
-                            [ ".", "ExecutionsFailed", ".", ".", { "label": "Failed", "color": "#d62728" } ]
-                        ],
-                        "view": "singleValue",
-                        "title": "Workflow Status (Month)",
-                        "region": "${AWS::Region}",
-                        "stat": "Sum",
-                        "period": 2592000
-                    }
-                },
-                {
-                    "type": "metric",
-                    "x": 0,
-                    "y": 0,
-                    "width": 12,
-                    "height": 3,
-                    "properties": {
-                        "metrics": [
-                            [ "AWS/States", "ExecutionsSucceeded", "StateMachineArn", "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${StateMachineNameLowerCase}-${PipelineVersion}", { "label": "Succeeded", "color": "#2ca02c" } ],
-                            [ ".", "ExecutionsTimedOut", ".", "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${StateMachineNameLowerCase}-${PipelineVersion}", { "label": "Timed Out" } ],
-                            [ ".", "ExecutionsFailed", ".", ".", { "label": "Failed", "color": "#d62728" } ]
-                        ],
-                        "view": "singleValue",
-                        "title": "Workflow Status (Day)",
-                        "region": "${AWS::Region}",
-                        "stat": "Sum",
-                        "period": 86400
-                    }
-                },
-                {
-                    "type": "metric",
-                    "x": 12,
-                    "y": 6,
-                    "width": 12,
-                    "height": 6,
-                    "properties": {
-                        "metrics": [
-                            [ "AWS/States", "ExecutionTime", "StateMachineArn", "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${StateMachineNameLowerCase}-${PipelineVersion}", { "label": "ExecutionTime - p50" } ],
-                            [ "...", { "stat": "p95", "label": "ExecutionTime - p95" } ]
-                        ],
-                        "view": "timeSeries",
-                        "stacked": false,
-                        "region": "${AWS::Region}",
-                        "stat": "p50",
-                        "period": 2592000,
-                        "title": "Workflow Runtime (Month)"
-                    }
-                },
-                {
-                    "type": "metric",
-                    "x": 12,
-                    "y": 0,
-                    "width": 12,
-                    "height": 6,
-                    "properties": {
-                        "metrics": [
-                            [ "AWS/States", "ExecutionTime", "StateMachineArn", "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${StateMachineNameLowerCase}-${PipelineVersion}", { "label": "ExecutionTime - p50" } ],
-                            [ "...", { "stat": "p95", "label": "ExecutionTime - p95" } ]
-                        ],
-                        "view": "timeSeries",
-                        "stacked": false,
-                        "region": "${AWS::Region}",
-                        "stat": "p50",
-                        "period": 86400,
-                        "title": "Workflow Runtime (Day)"
-                    }
-                },
-                {
-                  "type": "metric",
-                  "x": 0,
-                  "y": 6,
-                  "width": 12,
-                  "height": 6,
-                  "properties": {
-                      "metrics": [
-                          [ "${IntSiteCallerImage}:${IntSiteCallerImageTag}:${IntSiteCallerImageTag}", "ExecutionsSucceeded", "StateMachine", "${StateMachineNameLowerCase}-${PipelineVersion}", { "label": "IntSiteCaller", "color": "#2ca02c" } ]
-                      ],
-                      "view": "timeSeries",
-                      "stacked": false,
-                      "region": "${AWS::Region}",
-                      "stat": "SampleCount",
-                      "period": 3600,
-                      "title": "Tool Run Count (Hour)"
-                  }
+              {
+                "type": "metric",
+                "x": 0,
+                "y": 3,
+                "width": 12,
+                "height": 3,
+                "properties": {
+                  "metrics": [
+                    [
+                      "AWS/States",
+                      "ExecutionsSucceeded",
+                      "StateMachineArn",
+                      "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${StateMachineNameLowerCase}-${PipelineVersion}",
+                      {
+                        "label": "Succeeded",
+                        "color": "#2ca02c"
+                      }
+                    ],
+                    [
+                      ".",
+                      "ExecutionsTimedOut",
+                      ".",
+                      "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${StateMachineNameLowerCase}-${PipelineVersion}",
+                      {
+                        "label": "Timed Out"
+                      }
+                    ],
+                    [
+                      ".",
+                      "ExecutionsFailed",
+                      ".",
+                      ".",
+                      {
+                        "label": "Failed",
+                        "color": "#d62728"
+                      }
+                    ]
+                  ],
+                  "view": "singleValue",
+                  "title": "Workflow Status (Month)",
+                  "region": "${AWS::Region}",
+                  "stat": "Sum",
+                  "period": 2592000
                 }
+              },
+              {
+                "type": "metric",
+                "x": 0,
+                "y": 0,
+                "width": 12,
+                "height": 3,
+                "properties": {
+                  "metrics": [
+                    [
+                      "AWS/States",
+                      "ExecutionsSucceeded",
+                      "StateMachineArn",
+                      "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${StateMachineNameLowerCase}-${PipelineVersion}",
+                      {
+                        "label": "Succeeded",
+                        "color": "#2ca02c"
+                      }
+                    ],
+                    [
+                      ".",
+                      "ExecutionsTimedOut",
+                      ".",
+                      "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${StateMachineNameLowerCase}-${PipelineVersion}",
+                      {
+                        "label": "Timed Out"
+                      }
+                    ],
+                    [
+                      ".",
+                      "ExecutionsFailed",
+                      ".",
+                      ".",
+                      {
+                        "label": "Failed",
+                        "color": "#d62728"
+                      }
+                    ]
+                  ],
+                  "view": "singleValue",
+                  "title": "Workflow Status (Day)",
+                  "region": "${AWS::Region}",
+                  "stat": "Sum",
+                  "period": 86400
+                }
+              },
+              {
+                "type": "metric",
+                "x": 12,
+                "y": 6,
+                "width": 12,
+                "height": 6,
+                "properties": {
+                  "metrics": [
+                    [
+                      "AWS/States",
+                      "ExecutionTime",
+                      "StateMachineArn",
+                      "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${StateMachineNameLowerCase}-${PipelineVersion}",
+                      {
+                        "label": "ExecutionTime - p50"
+                      }
+                    ],
+                    [
+                      "...",
+                      {
+                        "stat": "p95",
+                        "label": "ExecutionTime - p95"
+                      }
+                    ]
+                  ],
+                  "view": "timeSeries",
+                  "stacked": false,
+                  "region": "${AWS::Region}",
+                  "stat": "p50",
+                  "period": 2592000,
+                  "title": "Workflow Runtime (Month)"
+                }
+              },
+              {
+                "type": "metric",
+                "x": 12,
+                "y": 0,
+                "width": 12,
+                "height": 6,
+                "properties": {
+                  "metrics": [
+                    [
+                      "AWS/States",
+                      "ExecutionTime",
+                      "StateMachineArn",
+                      "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${StateMachineNameLowerCase}-${PipelineVersion}",
+                      {
+                        "label": "ExecutionTime - p50"
+                      }
+                    ],
+                    [
+                      "...",
+                      {
+                        "stat": "p95",
+                        "label": "ExecutionTime - p95"
+                      }
+                    ]
+                  ],
+                  "view": "timeSeries",
+                  "stacked": false,
+                  "region": "${AWS::Region}",
+                  "stat": "p50",
+                  "period": 86400,
+                  "title": "Workflow Runtime (Day)"
+                }
+              },
+              {
+                "type": "metric",
+                "x": 0,
+                "y": 6,
+                "width": 12,
+                "height": 6,
+                "properties": {
+                  "metrics": [
+                    [
+                      "${IntSiteCallerImage}:${IntSiteCallerImageTag}:${IntSiteCallerImageTag}",
+                      "ExecutionsSucceeded",
+                      "StateMachine",
+                      "${StateMachineNameLowerCase}-${PipelineVersion}",
+                      {
+                        "label": "IntSiteCaller",
+                        "color": "#2ca02c"
+                      }
+                    ]
+                  ],
+                  "view": "timeSeries",
+                  "stacked": false,
+                  "region": "${AWS::Region}",
+                  "stat": "SampleCount",
+                  "period": 3600,
+                  "title": "Tool Run Count (Hour)"
+                }
+              },
+              {
+                "type": "metric",
+                "x": 0,
+                "y": 12,
+                "width": 12,
+                "height": 6,
+                "properties": {
+                  "view": "timeSeries",
+                  "stacked": false,
+                  "metrics": [
+                    [
+                      "intSiteCaller",
+                      "JobDuration",
+                      "JobName",
+                      "AlignSeqs_G6RV5-1"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-10"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-11"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-12"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-13"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-14"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-15"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-16"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-17"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-18"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-19"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-2"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-20"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-21"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-22"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-23"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-24"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-25"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-26"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-27"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-28"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-29"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-3"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-30"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-31"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-32"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-33"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-34"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-35"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-36"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-37"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-38"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-39"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-4"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-40"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-41"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-42"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-43"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-44"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-45"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-46"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-47"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-48"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-49"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-5"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-50"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-51"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-52"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-53"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-54"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-55"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-56"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-57"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-58"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-59"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-6"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-60"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-7"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-8"
+                    ],
+                    [
+                      "...",
+                      "AlignSeqs_G6RV5-9"
+                    ],
+                    [
+                      "...",
+                      "CallIntSites_G6RV5-1"
+                    ],
+                    [
+                      "...",
+                      "CallIntSites_G6RV5-10"
+                    ],
+                    [
+                      "...",
+                      "CallIntSites_G6RV5-11"
+                    ],
+                    [
+                      "...",
+                      "CallIntSites_G6RV5-12"
+                    ],
+                    [
+                      "...",
+                      "CallIntSites_G6RV5-13"
+                    ],
+                    [
+                      "...",
+                      "CallIntSites_G6RV5-14"
+                    ],
+                    [
+                      "...",
+                      "CallIntSites_G6RV5-15"
+                    ],
+                    [
+                      "...",
+                      "CallIntSites_G6RV5-16"
+                    ],
+                    [
+                      "...",
+                      "CallIntSites_G6RV5-17"
+                    ],
+                    [
+                      "...",
+                      "CallIntSites_G6RV5-18"
+                    ],
+                    [
+                      "...",
+                      "CallIntSites_G6RV5-19"
+                    ],
+                    [
+                      "...",
+                      "CallIntSites_G6RV5-2"
+                    ],
+                    [
+                      "...",
+                      "CallIntSites_G6RV5-20"
+                    ],
+                    [
+                      "...",
+                      "CallIntSites_G6RV5-21"
+                    ],
+                    [
+                      "...",
+                      "CallIntSites_G6RV5-22"
+                    ],
+                    [
+                      "...",
+                      "CallIntSites_G6RV5-23"
+                    ],
+                    [
+                      "...",
+                      "CallIntSites_G6RV5-24"
+                    ],
+                    [
+                      "...",
+                      "CallIntSites_G6RV5-3"
+                    ],
+                    [
+                      "...",
+                      "CallIntSites_G6RV5-4"
+                    ],
+                    [
+                      "...",
+                      "CallIntSites_G6RV5-5"
+                    ],
+                    [
+                      "...",
+                      "CallIntSites_G6RV5-6"
+                    ],
+                    [
+                      "...",
+                      "CallIntSites_G6RV5-7"
+                    ],
+                    [
+                      "...",
+                      "CallIntSites_G6RV5-8"
+                    ],
+                    [
+                      "...",
+                      "CallIntSites_G6RV5-9"
+                    ],
+                    [
+                      "...",
+                      "Demultiplex_G6RV5"
+                    ],
+                    [
+                      "...",
+                      "ErrorCheck_G6RV5"
+                    ],
+                    [
+                      "...",
+                      "ErrorCorrect_G6RV5"
+                    ],
+                    [
+                      "...",
+                      "ErrorCorrectWorker_G6RV5-1"
+                    ],
+                    [
+                      "...",
+                      "ErrorCorrectWorker_G6RV5-10"
+                    ],
+                    [
+                      "...",
+                      "ErrorCorrectWorker_G6RV5-2"
+                    ],
+                    [
+                      "...",
+                      "ErrorCorrectWorker_G6RV5-3"
+                    ],
+                    [
+                      "...",
+                      "ErrorCorrectWorker_G6RV5-4"
+                    ],
+                    [
+                      "...",
+                      "ErrorCorrectWorker_G6RV5-5"
+                    ],
+                    [
+                      "...",
+                      "ErrorCorrectWorker_G6RV5-6"
+                    ],
+                    [
+                      "...",
+                      "ErrorCorrectWorker_G6RV5-7"
+                    ],
+                    [
+                      "...",
+                      "ErrorCorrectWorker_G6RV5-8"
+                    ],
+                    [
+                      "...",
+                      "ErrorCorrectWorker_G6RV5-9"
+                    ],
+                    [
+                      "...",
+                      "intsitecaller"
+                    ],
+                    [
+                      "...",
+                      "PostTrimProcessing_G6RV5"
+                    ],
+                    [
+                      "...",
+                      "TrimReads_G6RV5-1"
+                    ],
+                    [
+                      "...",
+                      "TrimReads_G6RV5-10"
+                    ],
+                    [
+                      "...",
+                      "TrimReads_G6RV5-11"
+                    ],
+                    [
+                      "...",
+                      "TrimReads_G6RV5-12"
+                    ],
+                    [
+                      "...",
+                      "TrimReads_G6RV5-13"
+                    ],
+                    [
+                      "...",
+                      "TrimReads_G6RV5-14"
+                    ],
+                    [
+                      "...",
+                      "TrimReads_G6RV5-15"
+                    ],
+                    [
+                      "...",
+                      "TrimReads_G6RV5-16"
+                    ],
+                    [
+                      "...",
+                      "TrimReads_G6RV5-17"
+                    ],
+                    [
+                      "...",
+                      "TrimReads_G6RV5-18"
+                    ],
+                    [
+                      "...",
+                      "TrimReads_G6RV5-19"
+                    ],
+                    [
+                      "...",
+                      "TrimReads_G6RV5-2"
+                    ],
+                    [
+                      "...",
+                      "TrimReads_G6RV5-20"
+                    ],
+                    [
+                      "...",
+                      "TrimReads_G6RV5-21"
+                    ],
+                    [
+                      "...",
+                      "TrimReads_G6RV5-22"
+                    ],
+                    [
+                      "...",
+                      "TrimReads_G6RV5-23"
+                    ],
+                    [
+                      "...",
+                      "TrimReads_G6RV5-24"
+                    ],
+                    [
+                      "...",
+                      "TrimReads_G6RV5-3"
+                    ],
+                    [
+                      "...",
+                      "TrimReads_G6RV5-4"
+                    ],
+                    [
+                      "...",
+                      "TrimReads_G6RV5-5"
+                    ],
+                    [
+                      "...",
+                      "TrimReads_G6RV5-6"
+                    ],
+                    [
+                      "...",
+                      "TrimReads_G6RV5-7"
+                    ],
+                    [
+                      "...",
+                      "TrimReads_G6RV5-8"
+                    ],
+                    [
+                      "...",
+                      "TrimReads_G6RV5-9"
+                    ]
+                  ],
+                  "region": "us-east-1"
+                }
+              }
             ]
           }
