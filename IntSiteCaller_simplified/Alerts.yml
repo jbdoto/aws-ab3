@@ -17,39 +17,85 @@ Resources:
         - Endpoint: "jeffdoto@amazon.com"
           Protocol: email
 
-#  BatchSNSSubscription:
-#    Type: AWS::SNS::Subscription
-#    Properties:
-#      FilterPolicy: Json
-#      Protocol: email
-#      Region: us-east-1
-#      TopicArn: !Ref BatchEmailSNSTopic
+  BatchEmailSNSTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument: !Sub |-
+        {
+          "Version": "2012-10-17",
+          "Id": "__default_policy_ID",
+          "Statement": [
+            {
+              "Sid": "__default_statement_ID",
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": "*"
+              },
+              "Action": [
+                "SNS:Subscribe",
+                "SNS:ListSubscriptionsByTopic",
+                "SNS:DeleteTopic",
+                "SNS:GetTopicAttributes",
+                "SNS:Publish",
+                "SNS:RemovePermission",
+                "SNS:AddPermission",
+                "SNS:Receive",
+                "SNS:SetTopicAttributes"
+              ],
+              "Resource": "${BatchEmailSNSTopic}",
+              "Condition": {
+                "StringEquals": {
+                  "AWS:SourceOwner": "${AWS::AccountId}"
+                }
+              }
+            },
+            {
+              "Sid": "Allow_Publish_Events",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "events.amazonaws.com"
+              },
+              "Action": "sns:Publish",
+              "Resource": "${BatchEmailSNSTopic}"
+            }
+          ]
+        }
+      Topics:
+        - !Ref BatchEmailSNSTopic
 
   # example event: https://docs.aws.amazon.com/batch/latest/userguide/batch_cwe_events.html
   # https://docs.aws.amazon.com/eventbridge/latest/userguide/filtering-examples-structure.html
   # https://docs.aws.amazon.com/batch/latest/userguide/batch_sns_tutorial.html
   # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-events-rule.html
+  BatchEventRuleRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Description: Allows events to send messages to SNS.
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSNSFullAccess
+
   BatchEventFailedRule:
     Type: AWS::Events::Rule
     Properties:
       Description: Notifies user that a job failed.
-      EventPattern: |-
-        {
-          "EventPattern": {
-            "source": [
-              "aws.batch"
-            ],
-            "detail-type": [
-              "Batch Job State Change"
-            ],
-            "detail": {
-              "status": [
-                "FAILED"
-              ]
-            }
-          }
-        }
-      State: "ENABLED"
+      EventPattern:
+        source:
+          - aws.batch
+        detail-type:
+          - Batch Job State Change
+        detail:
+          status:
+            - FAILED
+      RoleArn: !GetAtt BatchEventRuleRole.Arn
+      State: ENABLED
       Targets:
         - Arn: !Ref BatchEmailSNSTopic
           Id: intsitecaller-job-failed
@@ -58,26 +104,18 @@ Resources:
     Type: AWS::Events::Rule
     Properties:
       Description: Notifies user when parent job succeeds
-      EventPattern: !Sub |-
-        {
-          "EventPattern": {
-            "source": [
-                "aws.batch"
-            ],
-            "detail-type": [
-                "Batch Job State Change"
-            ],
-            "detail": {
-              "status": [
-                  "SUCCEEDED"
-              ],
-              "jobName": [
-                  "${intSiteCallerJobName}"
-              ]
-            }
-          }
-        }
-      State: "ENABLED"
+      EventPattern:
+        source:
+          - aws.batch
+        detail-type:
+          - Batch Job State Change
+        detail:
+          status:
+            - SUCCEEDED
+          jobName:
+            - !Sub ${intSiteCallerJobName}
+      RoleArn: !GetAtt BatchEventRuleRole.Arn
+      State: ENABLED
       Targets:
         - Arn: !Ref BatchEmailSNSTopic
           Id: intsitecaller-parent-job-success
