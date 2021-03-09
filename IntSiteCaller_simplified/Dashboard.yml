@@ -3,15 +3,12 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: IntSiteCallerDashboard
 
 Parameters:
-  ResourcePrefix:
+  StateMachineNameLowerCase:
     Type: String
-    Default: IntSiteCallerProcessingPipeline
-  ResourcePrefixLowercase:
-    Type: String
-    Default: intsitecallerprocessingpipeline
+    Default: intsitecaller
   JobQueue:
     Type: String
-    Default: IntSiteCallerJobQueue
+    Default: intsitecaller-job-queue
   IntSiteCallerImage:
     Type: String
     Default: intsitecaller
@@ -23,7 +20,7 @@ Parameters:
     Default: intsitecaller-results
   PipelineVersion:
     Type: String
-    Default: '1.0.0'
+    Default: '1_0_0'
 
 Resources:
   Dashboard:
@@ -42,8 +39,8 @@ Resources:
                     "height": 3,
                     "properties": {
                         "metrics": [
-                            [ "AWS/States", "ExecutionsSucceeded", "StateMachineArn", "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${ResourcePrefixLowercase}-${PipelineVersion}", { "label": "Succeeded", "color": "#2ca02c" } ],
-                            [ ".", "ExecutionsTimedOut", ".", "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${ResourcePrefixLowercase}-${PipelineVersion}", { "label": "Timed Out" } ],
+                            [ "AWS/States", "ExecutionsSucceeded", "StateMachineArn", "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${StateMachineNameLowerCase}-${PipelineVersion}", { "label": "Succeeded", "color": "#2ca02c" } ],
+                            [ ".", "ExecutionsTimedOut", ".", "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${StateMachineNameLowerCase}-${PipelineVersion}", { "label": "Timed Out" } ],
                             [ ".", "ExecutionsFailed", ".", ".", { "label": "Failed", "color": "#d62728" } ]
                         ],
                         "view": "singleValue",
@@ -61,8 +58,8 @@ Resources:
                     "height": 3,
                     "properties": {
                         "metrics": [
-                            [ "AWS/States", "ExecutionsSucceeded", "StateMachineArn", "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${ResourcePrefixLowercase}-${PipelineVersion}", { "label": "Succeeded", "color": "#2ca02c" } ],
-                            [ ".", "ExecutionsTimedOut", ".", "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${ResourcePrefixLowercase}-${PipelineVersion}", { "label": "Timed Out" } ],
+                            [ "AWS/States", "ExecutionsSucceeded", "StateMachineArn", "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${StateMachineNameLowerCase}-${PipelineVersion}", { "label": "Succeeded", "color": "#2ca02c" } ],
+                            [ ".", "ExecutionsTimedOut", ".", "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${StateMachineNameLowerCase}-${PipelineVersion}", { "label": "Timed Out" } ],
                             [ ".", "ExecutionsFailed", ".", ".", { "label": "Failed", "color": "#d62728" } ]
                         ],
                         "view": "singleValue",
@@ -80,7 +77,7 @@ Resources:
                     "height": 6,
                     "properties": {
                         "metrics": [
-                            [ "AWS/States", "ExecutionTime", "StateMachineArn", "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${ResourcePrefixLowercase}-${PipelineVersion}", { "label": "ExecutionTime - p50" } ],
+                            [ "AWS/States", "ExecutionTime", "StateMachineArn", "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${StateMachineNameLowerCase}-${PipelineVersion}", { "label": "ExecutionTime - p50" } ],
                             [ "...", { "stat": "p95", "label": "ExecutionTime - p95" } ]
                         ],
                         "view": "timeSeries",
@@ -99,7 +96,7 @@ Resources:
                     "height": 6,
                     "properties": {
                         "metrics": [
-                            [ "AWS/States", "ExecutionTime", "StateMachineArn", "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${ResourcePrefixLowercase}-${PipelineVersion}", { "label": "ExecutionTime - p50" } ],
+                            [ "AWS/States", "ExecutionTime", "StateMachineArn", "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${StateMachineNameLowerCase}-${PipelineVersion}", { "label": "ExecutionTime - p50" } ],
                             [ "...", { "stat": "p95", "label": "ExecutionTime - p95" } ]
                         ],
                         "view": "timeSeries",
@@ -118,7 +115,7 @@ Resources:
                   "height": 6,
                   "properties": {
                       "metrics": [
-                          [ "${IntSiteCallerImage}:${IntSiteCallerImageTag}:${IntSiteCallerImageTag}", "ExecutionsSucceeded", "StateMachine", "${ResourcePrefixLowercase}-${PipelineVersion}", { "label": "IntSiteCaller", "color": "#2ca02c" } ]
+                          [ "${IntSiteCallerImage}:${IntSiteCallerImageTag}:${IntSiteCallerImageTag}", "ExecutionsSucceeded", "StateMachine", "${StateMachineNameLowerCase}-${PipelineVersion}", { "label": "IntSiteCaller", "color": "#2ca02c" } ]
                       ],
                       "view": "timeSeries",
                       "stacked": false,
