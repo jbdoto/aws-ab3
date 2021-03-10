@@ -30,16 +30,7 @@ Parameters:
   JobresultsBucket:
     Type: String
     Default: intsitecaller-jobresults
-  DependenciesBucket:
-    Type: String
-    Default: intsitecaller-dependencies
-  DatasetsBucket:
-    Type: String
-    Default: intsitecaller-datasets
-  BroadBucket:
-    Type: String
-    Default: broad-references
-  
+
 Resources:
   BatchJobDefinitionIntSiteCaller:
     Type: AWS::Batch::JobDefinition
@@ -49,7 +40,7 @@ Resources:
         AttemptDurationSeconds: 7200 # 2 hour timeout
       Type: container
       Parameters:
-        BUCKET_NAME: "intsitecaller-samples"
+        BUCKET_NAME: !Sub ${SamplesBucket}
         OBJECT_NAME: "STEP-FUNCTION-WILL-PROVIDE"
         SAMPLE_ID: "STEP-FUNCTION-WILL-PROVIDE"
         SERIAL_WAIT: "TRUE"
@@ -66,12 +57,6 @@ Resources:
         Environment:
           - Name: SAMPLES_BUCKET
             Value: !Sub ${SamplesBucket}
-          - Name: DATASETS_BUCKET
-            Value: !Sub ${DatasetsBucket}
-          - Name: BROAD_BUCKET
-            Value: !Sub ${BroadBucket}
-          - Name: DEPENDENCIES_BUCKET
-            Value: !Sub ${DependenciesBucket}
           - Name: JOBRESULTS_BUCKET
             Value: !Sub ${JobresultsBucket}
           - Name: AWS_REGION
@@ -206,12 +191,6 @@ Resources:
                 Resource:
                   - !Sub arn:aws:s3:::${SamplesBucket}
                   - !Sub arn:aws:s3:::${SamplesBucket}/*
-                  - !Sub arn:aws:s3:::${DependenciesBucket}
-                  - !Sub arn:aws:s3:::${DependenciesBucket}/*
-                  - !Sub arn:aws:s3:::${DatasetsBucket}
-                  - !Sub arn:aws:s3:::${DatasetsBucket}/*
-                  - !Sub arn:aws:s3:::${BroadBucket}
-                  - !Sub arn:aws:s3:::${BroadBucket}/*
         - PolicyName: BatchAccess
           PolicyDocument:
             Version: 2012-10-17
@@ -263,12 +242,6 @@ Resources:
                 Resource:
                   - !Sub arn:aws:s3:::${SamplesBucket}
                   - !Sub arn:aws:s3:::${SamplesBucket}/*
-                  - !Sub arn:aws:s3:::${DependenciesBucket}
-                  - !Sub arn:aws:s3:::${DependenciesBucket}/*
-                  - !Sub arn:aws:s3:::${DatasetsBucket}
-                  - !Sub arn:aws:s3:::${DatasetsBucket}/*
-                  - !Sub arn:aws:s3:::${BroadBucket}
-                  - !Sub arn:aws:s3:::${BroadBucket}/*
         - PolicyName: BatchAccess
           PolicyDocument:
             Version: 2012-10-17
@@ -459,8 +432,8 @@ Resources:
       LustreConfiguration:
         AutoImportPolicy: NEW_CHANGED
           # There are some additional performance tuning aspects here.
-        ExportPath: "s3://intsitecaller-samples/results/"
-        ImportPath: "s3://intsitecaller-samples/samples/"
+        ExportPath: !Sub "s3://${SamplesBucket}/results/"
+        ImportPath: !Sub "s3://${SamplesBucket}/samples/"
         WeeklyMaintenanceStartTime:  "7:17:00" #Sundays at our noon EST, clock is in UTC
       #https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-fsx-filesystem.html
       StorageCapacity: 1200 # 1.2TB
