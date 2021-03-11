@@ -177,34 +177,6 @@ Resources:
                 Resource:
                   - arn:aws:s3:::*
 
-  DatasetsBucket:
-    Type: AWS::S3::Bucket
-    DependsOn: LogsBucket
-    Properties:
-      BucketName: !Sub ${ResourcePrefixLowercase}-datasets
-      LoggingConfiguration:
-        DestinationBucketName: !Sub ${LogsBucket}
-        LogFilePrefix: !Sub ${ResourcePrefixLowercase}-datasets/
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: True
-        BlockPublicPolicy: True
-        IgnorePublicAcls: True
-        RestrictPublicBuckets: True
-
-  DependenciesBucket:
-    Type: AWS::S3::Bucket
-    DependsOn: LogsBucket
-    Properties:
-      BucketName: !Sub ${ResourcePrefixLowercase}-dependencies
-      LoggingConfiguration:
-        DestinationBucketName: !Sub ${LogsBucket}
-        LogFilePrefix: !Sub ${ResourcePrefixLowercase}-dependencies/
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: True
-        BlockPublicPolicy: True
-        IgnorePublicAcls: True
-        RestrictPublicBuckets: True
-
   JobResultsBucket:
     Type: AWS::S3::Bucket
     DependsOn: LogsBucket
