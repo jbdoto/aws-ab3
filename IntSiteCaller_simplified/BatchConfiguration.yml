@@ -54,6 +54,7 @@ Resources:
         Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ResourcePrefixLowercase}:${ImageTag}
         Vcpus: 1
         Memory: 1000
+        Privileged: True
         Environment:
           - Name: SAMPLES_BUCKET
             Value: !Sub ${SamplesBucket}
@@ -203,6 +204,7 @@ Resources:
                   - !Sub arn:aws:batch:${AWS::Region}:${AWS::AccountId}:job-queue/*
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+        - arn:aws:iam::aws:policy/AmazonFSxFullAccess
 
   ECSInstanceRole:
     Type: AWS::IAM::Role
@@ -279,6 +281,7 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
         - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/AmazonFSxFullAccess
 
   ECSInstanceProfile:
     Type: AWS::IAM::InstanceProfile
