@@ -339,17 +339,14 @@ Resources:
             Content-Type: multipart/mixed; boundary="==BOUNDARY=="
 
             --==BOUNDARY==
-            Content-Type: text/cloud-config; charset="us-ascii"
+            Content-Type: text/x-shellscript; charset="us-ascii"
+            MIME-Version: 1.0
 
-            packages:
-            - lustre-client
-            - amazon-ssm-agent
-
-            runcmd:
-            - start amazon-ssm-agent
-
-            - mkdir -p /scratch/results
-            - mount -t lustre ${FSxLustreWorkingFileSystem}.fsx.${AWS::Region}.amazonaws.com@tcp:/fsx /scratch/results
+            #!/bin/bash
+            amazon-linux-extras install lustre2.10
+            mkdir -p /scratch/results
+            mount -t lustre -o noatime,flock,_netdev ${FSxLustreWorkingFileSystem}.fsx.${AWS::Region}.amazonaws.com@tcp:/fsx /scratch/results
+            echo "${FSxLustreWorkingFileSystem}.fsx.${AWS::Region}.amazonaws.com@tcp:/fsx /scratch/results lustre defaults,noatime,flock,_netdev 0 0" >> /etc/fstab
 
 
   BatchComputeEnvironmentSpot:
