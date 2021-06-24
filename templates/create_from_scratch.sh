@@ -9,6 +9,8 @@ aws cloudformation create-stack --stack-name IntSiteCallerBuckets --template-bod
 aws cloudformation create-stack --stack-name IntSiteCallerBatchConfiguration --template-body file://BatchConfiguration.yml  --profile=<your_profile> --region=us-east-1 --capabilities CAPABILITY_NAMED_IAM; aws cloudformation wait stack-update-complete --stack-name IntSiteCallerBatchConfiguration
 # Create Cloudwatch dashboard:
 aws cloudformation create-stack --stack-name IntSiteCallerPipelineDashboard --template-body file://Dashboard.yml  --profile=<your_profile> --region=us-east-1 --capabilities CAPABILITY_NAMED_IAM; aws cloudformation wait stack-update-complete --stack-name IntSiteCallerPipelineDashboard
+# Create email alert handler:
+aws cloudformation create-stack --stack-name IntSiteCallerAlerts --template-body file://Alerts.yml  --profile=<your_profile> --region=us-east-1 --capabilities CAPABILITY_NAMED_IAM
 
 # Next, create repositories and run build.sh for intSiteCaller, sesEmailHandler, and lambdaUploadHandler projects.
 # Create ECR repositories (do this from within each of the above projects, see repository.yml for commands)
