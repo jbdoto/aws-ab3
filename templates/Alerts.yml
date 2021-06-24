@@ -16,6 +16,12 @@ Parameters:
   ContainerTag:
     Type: String
     Default: 1.0.0
+  FromAddress:
+    Type: String
+    Default: "FirstName LastName <someemail@somewhere.com>"
+  ToAddress:
+    Type: String
+    Default: "someemail@somewhere.com"
 
 Resources:
 
@@ -63,8 +69,8 @@ Resources:
       FunctionName: !Sub ${LambdaFunctionName}
       Environment:
         Variables:
-          FROM_ADDRESS: "Jeffrey Doto <jeffdoto@amazon.com>" # note SES must be configured with this allowed email.
-          TO_ADDRESS: "jeffdoto@amazon.com"
+          FROM_ADDRESS: "FirstName LastName <someemail@somewhere.com>" # note SES must be configured with this allowed email.
+          TO_ADDRESS: "someemail@somewhere.com"
 
       Events:
         BatchEventParentSucceededRule:
